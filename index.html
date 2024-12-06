@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cockroach.io</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #f4f4f4;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    document.body.appendChild(canvas);
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Game variables
+    let cockroachImage = new Image();
+    let footprintImage = new Image();
+    let foodImage = new Image();
+    
+    cockroachImage.src = 'roach.png'; // Replace with user-selected image
+    footprintImage.src = 'footprint.png'; // Replace with user-selected image
+    foodImage.src = 'food.png'; // Replace with user-selected image
+
+    let cockroach = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      width: 50,
+      height: 50,
+      speed: 5
+    };
+
+    let foods = [];
+    let footprints = [];
+    let score = 0;
+    let highScore = localStorage.getItem('highScore') || 0;
+    let gameSpeed = 1;
+
+    function randomPosition(size) {
+      return {
+        x: Math.random() * (canvas.width - size),
+        y: Math.random() * (canvas.height - size)
+      };
+    }
+
+    function spawnFood() {
+      let position = randomPosition(30);
+      foods.push({ x: position.x, y: position.y, size: 30 });
+    }
+
+    function spawnFootprint() {
+      let position = randomPosition(50);
+      footprints.push({ x: position.x, y: position.y, size: 50, time: 0 });
+    }
+
+    function update() {
+      // Move footprints
+      footprints.forEach(fp => {
+        fp.time += gameSpeed;
+        if (fp.time > 50) fp.time = 50;
+      });
+
+      // Check for collisions with food
+      foods = foods.filter(food => {
+        if (
+          cockroach.x < food.x + food.size &&
+          cockroach.x + cockroach.width > food.x &&
+          cockroach.y < food.y + food.size &&
+          cockroach.y + cockroach.height > food.y
+        ) {
+          score++;
+          gameSpeed = 1 + score / 10;
+          spawnFood();
+          return false;
+        }
+        return true;
+      });
+
+      // Check for collisions with footprints
+      footprints = footprints.filter(fp => {
+        if (
+          cockroach.x < fp.x + fp.size &&
+          cockroach.x + cockroach.width > fp.x &&
+          cockroach.y < fp.y + fp.size &&
+          cockroach.y + cockroach.height > fp.y
+        ) {
+          resetGame();
+          return false;
+        }
+        return true;
+      });
+
+      // Spawn more food and footprints
+      if (foods.length < 5) spawnFood();
+      if (Math.random() < 0.01 * gameSpeed) spawnFootprint();
+    }
+
+    function resetGame() {
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+      }
+      score = 0;
+      gameSpeed = 1;
+      foods = [];
+      footprints = [];
+      spawnFood();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw cockroach
+      ctx.drawImage(cockroachImage, cockroach.x, cockroach.y, cockroach.width, cockroach.height);
+
+      // Draw food
+      foods.forEach(food => {
+        ctx.drawImage(foodImage, food.x, food.y, food.size, food.size);
+      });
+
+      // Draw footprints
+      footprints.forEach(fp => {
+        ctx.globalAlpha = fp.time / 50;
+        ctx.drawImage(footprintImage, fp.x, fp.y, fp.size, fp.size);
+        ctx.globalAlpha = 1;
+      });
+
+      // Draw score
+      ctx.fillStyle = 'black';
+      ctx.font = '20px Arial';
+      ctx.fillText(`Score: ${score}`, 10, 30);
+      ctx.fillText(`High Score: ${highScore}`, 10, 60);
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Handle controls
+    window.addEventListener('keydown', e => {
+      switch (e.key) {
+        case 'ArrowUp':
+          cockroach.y -= cockroach.speed;
+          break;
+        case 'ArrowDown':
+          cockroach.y += cockroach.speed;
+          break;
+        case 'ArrowLeft':
+          cockroach.x -= cockroach.speed;
+          break;
+        case 'ArrowRight':
+          cockroach.x += cockroach.speed;
+          break;
+      }
+    });
+
+    // Start the game
+    spawnFood();
+    gameLoop();
+  </script>
+</body>
+</html>
